@@ -23,10 +23,33 @@ const char* kernelSource = R"(
     }
 )";
 
+
+const char* edges = R"(
+    __kernel void process_image(__global uchar *image, // Obraz RGB
+                            __global uchar *gray_image, // Obraz szaro-skalowy
+                            const int width,
+                            const int height) {
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    if (x < width && y < height) {
+        int idx = (y * width + x) * 3; // Indeks w obrazie RGB
+        uchar r = image[idx];
+        uchar g = image[idx + 1];
+        uchar b = image[idx + 2];
+        
+        uchar gray = (uchar)(0.299f * r + 0.587f * g + 0.114f * b);
+
+        // Zapisywanie wartości szarości w nowym buforze
+        gray_image[y * width + x] = gray;
+    }
+}
+)";
+
 int main() {
 
     int width, height, channels;
     stbi_uc* image_data = stbi_load("wp.jpg", &width, &height, &channels, 0);
+    stbi_uc* finalImage = new stbi_uc[width*height];
     if (image_data == NULL) {
         fprintf(stderr, "Error loading image\n");
         return -1;
@@ -34,7 +57,7 @@ int main() {
 
     // Inicjalizacja danych
     float a[VECTOR_SIZE], b[VECTOR_SIZE], c[VECTOR_SIZE];
-    for (int i = 0; i < VECTOR_SIZE; i++) {
+    for (int i = 0; i < VECTOR_SIZE; ++i) {
         a[i] = i;
         b[i] = (i+1);
     }
@@ -50,6 +73,7 @@ int main() {
     cl_command_queue queue = clCreateCommandQueue(context, device, 0, NULL);
 
     cl_mem image_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE, width * height * channels, NULL, NULL);
+    cl_mem final_image_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE, width * height, NULL, NULL);
 
 
     cl_int err;
@@ -61,18 +85,29 @@ int main() {
     }
 
     cl_program program = clCreateProgramWithSource(context, 1, &kernelSource, NULL, NULL);
+    cl_program gray_scale_program = clCreateProgramWithSource(context, 1, &edges, NULL, NULL);
     clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    clBuildProgram(gray_scale_program, 1, &device, NULL, NULL, NULL);
     cl_kernel kernel = clCreateKernel(program, "process_image", NULL);
+    cl_kernel gray_kernel = clCreateKernel(gray_scale_program, "process_image", NULL);
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &image_buffer);
     clSetKernelArg(kernel, 1, sizeof(int), &width);
     clSetKernelArg(kernel, 2, sizeof(int), &height);
 
+    clSetKernelArg(gray_kernel, 0, sizeof(cl_mem), &image_buffer);
+    clSetKernelArg(gray_kernel, 1, sizeof(cl_mem), &final_image_buffer);
+    clSetKernelArg(gray_kernel, 2, sizeof(int), &width);
+    clSetKernelArg(gray_kernel, 3, sizeof(int), &height);
+    
     size_t global_work_size[2] = { width, height };
     clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
     clFinish(queue);
 
-    err = clEnqueueReadBuffer(queue, image_buffer, CL_TRUE, 0, width * height * channels, image_data, 0, NULL, NULL);
+    clEnqueueNDRangeKernel(queue, gray_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
+    clFinish(queue);
+
+    err = clEnqueueReadBuffer(queue, final_image_buffer, CL_TRUE, 0, width * height, finalImage, 0, NULL, NULL);
 
     if (err != CL_SUCCESS) {
         fprintf(stderr, "Error reading image data from buffer\n");
@@ -80,15 +115,20 @@ int main() {
     }
 
     // Zapisz przetworzony obraz
-    stbi_write_png("output.png", width, height, channels, image_data, width * channels);
+    stbi_write_png("output.png", width, height, 1, finalImage, width);
 
     // Zwolnij zasoby
     clReleaseMemObject(image_buffer);
+    clReleaseMemObject(final_image_buffer);
     clReleaseKernel(kernel);
+    clReleaseKernel(gray_kernel);
     clReleaseProgram(program);
+    clReleaseProgram(gray_scale_program);
     clReleaseCommandQueue(queue);
     clReleaseContext(context);
     stbi_image_free(image_data);
+    stbi_image_free(finalImage);
+    
 
 
     return 0;
