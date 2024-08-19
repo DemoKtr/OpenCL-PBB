@@ -20,7 +20,7 @@ include_directories(${OpenCL_INCLUDE_DIR})
 
 
 # Add source to this project's executable.
-add_executable (OpenCLPPB src/main.cpp )
+add_executable (OpenCLPPB src/main.cpp  "src/fileLoader/Toon.h" "src/fileLoader/Loader.h" "src/fileLoader/Toon.cpp" "src/builderCL.h" "src/builderCL.cpp")
 
 
 target_link_libraries(OpenCLPPB ${OpenCL_LIBRARY})
