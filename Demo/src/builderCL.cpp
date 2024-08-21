@@ -17,13 +17,20 @@ void clInit::Initialize(CLInitializeInput input)
 void clInit::CreateProgram(CLCreateProgramInput input)
 {
     const char* code = loader::loadCL(input.code);
-    *input.program = clCreateProgramWithSource(input.context, 1, &code, NULL, NULL);
-
-    Build(*input.program, input.device);
+    cl_int err;
+    *input.program = clCreateProgramWithSource(input.context, 1, &code, NULL, &err);
+    if (err != CL_SUCCESS) {
+        fprintf(stderr, "Error create %d program\n", input.code);
+    }
+    Build(*input.program, input.device,input.code);
 }
-void clInit::Build(cl_program program, cl_device_id device)
+void clInit::Build(cl_program program, cl_device_id device, std::string code)
 {
-    clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    cl_int err;
+    err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    if (err != CL_SUCCESS) {
+        fprintf(stderr, "Error build %d program\n", code);
+    }
 }
 
 void clInit::CreateKernel(cl_kernel* kernel, cl_program program)

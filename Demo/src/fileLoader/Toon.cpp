@@ -106,8 +106,6 @@ void toon_postprocess(std::string image)
 
 
     size_t global_work_size[2] = { width, height };
-    //clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
-    //clFinish(queue);
 
     clEnqueueNDRangeKernel(queue, gray_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
     clFinish(queue);

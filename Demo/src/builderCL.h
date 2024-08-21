@@ -51,6 +51,6 @@ namespace clInit {
 
 	void CreateProgram(CLCreateProgramInput input);
 
-	void Build(cl_program program, cl_device_id device);
+	void Build(cl_program program, cl_device_id device, std::string code);
 	void CreateKernel(cl_kernel *kernel, cl_program program);
 }
