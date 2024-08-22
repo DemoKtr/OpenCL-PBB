@@ -9,13 +9,13 @@
 void pbb_postprocess(std::string image)
 {
     int width, height, channels;
-    int mipLevel = 5;
+    int mipLevel = 3;
 
 
-    stbi_uc* image_data = stbi_load("1.jpg", &width, &height, &channels, 0);
+    stbi_uc* image_data = stbi_load("wp.jpg", &width, &height, &channels, 0);
     std::vector<stbi_uc*> mip;
     for (uint32_t i = 0; i < mipLevel; ++i) {
-       mip.push_back(new stbi_uc[(width/((2*(i+1)))) * (height/((2 * (i + 1)))) *channels]);
+       mip.push_back(new stbi_uc[(width/(2*(i+1))) * (height/(2 * (i + 1))) *channels]);
     }
     stbi_uc* finalImage = new stbi_uc[(width) * (height) * channels];
     if (image_data == NULL) {
@@ -38,7 +38,9 @@ void pbb_postprocess(std::string image)
     clInit::Initialize(input);
 
     cl_mem image_buffer;
+    cl_mem mbuffer;
     cl_mem final_image_buffer;
+    cl_mem bloom_image_buffer;
 
     clInit::CLCreateBufferInput<stbi_uc> bufferInput = {};
     bufferInput.buffer = &image_buffer;
@@ -52,19 +54,21 @@ void pbb_postprocess(std::string image)
     bufferInput.buffer = &final_image_buffer;
     bufferInput.data = nullptr;
     clInit::CreateBuffer(bufferInput);
-    std::vector<cl_mem> mipBuffer;
+    bufferInput.buffer = &bloom_image_buffer;
+    clInit::CreateBuffer(bufferInput);
+
+    std::vector<cl_mem> mipBuffer(mipLevel);
     
-    for (size_t i = 0; i < mipLevel; ++i)
-    {
-        mipBuffer.push_back(cl_mem());
-    }
-    size_t sizebuffer = 1;
-    for (cl_mem buffer : mipBuffer) {
-        bufferInput.size = width/(2*sizebuffer) * height/(2*sizebuffer) * channels;
-        bufferInput.buffer = &buffer;
+
+
+    for (uint32_t i = 0; i < mipLevel; ++i) {
+        bufferInput.size = width / (2 * (i+1)) * height / (2 * (i+1)) * channels;
+        bufferInput.buffer = &mipBuffer[i];
         clInit::CreateBuffer(bufferInput);
-        ++sizebuffer;
     }
+        
+
+
     
 
 
@@ -73,6 +77,7 @@ void pbb_postprocess(std::string image)
 
     cl_program down_scale;
     cl_program up_scale;
+    cl_program PBB;
 
     clInit::CLCreateProgramInput programInfo = {};
     programInfo.context = context;
@@ -83,41 +88,39 @@ void pbb_postprocess(std::string image)
     programInfo.code = "upScale.CL";
     programInfo.program = &up_scale;
     clInit::CreateProgram(programInfo);
+    programInfo.code = "PBB.CL";
+    programInfo.program = &PBB;
+    clInit::CreateProgram(programInfo);
 
 
 
     cl_kernel down_scale_kernel;
     cl_kernel up_scale_kernel;
+    cl_kernel pbb_scale_kernel;
 
     clInit::CreateKernel(&down_scale_kernel, down_scale);
     clInit::CreateKernel(&up_scale_kernel, up_scale);
+    clInit::CreateKernel(&pbb_scale_kernel, PBB);
 
     int *widthMip = new int[mipLevel];
     int* heightMip = new int[mipLevel];
+    widthMip[0] = width / 2;  // Pierwszy poziom jest 2 razy mniejszy
+    heightMip[0] = height / 2;
 
-    for (int i = 0; i < mipLevel; ++i) {
-        widthMip[i] = width / (2 * (i + 1));
-        heightMip[i] = height / (2 * (i + 1));
+    for (int i = 1; i < mipLevel; ++i) {
+        widthMip[i] = widthMip[i - 1] / 2;
+        heightMip[i] = heightMip[i - 1] / 2;
     }
-    size_t global_work_size[2] = { widthMip[0],heightMip[0] };
-
-    clSetKernelArg(down_scale_kernel, 0, sizeof(cl_mem), &image_buffer);
-    clSetKernelArg(down_scale_kernel, 1, sizeof(cl_mem), &mipBuffer[0]);
-    clSetKernelArg(down_scale_kernel, 2, sizeof(int), &widthMip[0]);
-    clSetKernelArg(down_scale_kernel, 3, sizeof(int), &heightMip[0]);
-    std::cout << global_work_size[0] << std::endl;
-    std::cout << global_work_size[1] << std::endl;
-    clEnqueueNDRangeKernel(queue, down_scale_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
-    clFinish(queue);
-    /*
+    
+    
     for (size_t i = 0; i < mipLevel; ++i) {
         size_t global_work_size[2] = { widthMip[i],heightMip[i]};
-        clSetKernelArg(down_scale_kernel, 2, sizeof(int), &widthMip[i]);
-        clSetKernelArg(down_scale_kernel, 3, sizeof(int), &heightMip[i]);
+        
         if (i == 0) {
             clSetKernelArg(down_scale_kernel, 0, sizeof(cl_mem), &image_buffer);
             clSetKernelArg(down_scale_kernel, 1, sizeof(cl_mem), &mipBuffer[i]);
-
+            clSetKernelArg(down_scale_kernel, 2, sizeof(int), &widthMip[i]);
+            clSetKernelArg(down_scale_kernel, 3, sizeof(int), &heightMip[i]);
             clEnqueueNDRangeKernel(queue, down_scale_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
             clFinish(queue);
         }
@@ -125,30 +128,67 @@ void pbb_postprocess(std::string image)
 
             clSetKernelArg(down_scale_kernel, 0, sizeof(cl_mem), &mipBuffer[i - 1]);
             clSetKernelArg(down_scale_kernel, 1, sizeof(cl_mem), &mipBuffer[i]);
-            
+            clSetKernelArg(down_scale_kernel, 2, sizeof(int), &widthMip[i]);
+            clSetKernelArg(down_scale_kernel, 3, sizeof(int), &heightMip[i]);
             clEnqueueNDRangeKernel(queue, down_scale_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
             clFinish(queue);
         }
         
     }
-    */
+    for (int i = mipLevel - 1; i >= 0; --i) {
+        
 
+        if (i == 0) {
+            size_t global_work_size[2] = { width,height };
+            clSetKernelArg(up_scale_kernel, 0, sizeof(cl_mem), &mipBuffer[0]);
+            clSetKernelArg(up_scale_kernel, 1, sizeof(cl_mem), &bloom_image_buffer);
+            clSetKernelArg(up_scale_kernel, 2, sizeof(int), &width);
+            clSetKernelArg(up_scale_kernel, 3, sizeof(int), &height);
+            clEnqueueNDRangeKernel(queue, up_scale_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
+            clFinish(queue);
+        }
+        else {
+            size_t global_work_size[2] = { widthMip[i-1],heightMip[i-1] };
+            clSetKernelArg(up_scale_kernel, 0, sizeof(cl_mem), &mipBuffer[i]);
+            clSetKernelArg(up_scale_kernel, 1, sizeof(cl_mem), &mipBuffer[i-1]);
+            clSetKernelArg(up_scale_kernel, 2, sizeof(int), &widthMip[i-1]);
+            clSetKernelArg(up_scale_kernel, 3, sizeof(int), &heightMip[i-1]);
+            clEnqueueNDRangeKernel(queue, up_scale_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
+            clFinish(queue);
+        }
+
+    }
+    float bloomStrength = 0.1f;
+    size_t global_work_size[2] = { width,height };
+    clSetKernelArg(pbb_scale_kernel, 0, sizeof(cl_mem), &image_buffer);
+    clSetKernelArg(pbb_scale_kernel, 1, sizeof(cl_mem), &bloom_image_buffer);
+    clSetKernelArg(pbb_scale_kernel, 2, sizeof(cl_mem), &final_image_buffer);
+    clSetKernelArg(pbb_scale_kernel, 3, sizeof(float), &bloomStrength);
+    clSetKernelArg(pbb_scale_kernel, 4, sizeof(int), &width);
+    clSetKernelArg(pbb_scale_kernel, 5, sizeof(int), &height);
+    clEnqueueNDRangeKernel(queue, pbb_scale_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
+    clFinish(queue);
     
 
-    //err = clEnqueueReadBuffer(queue, final_image_buffer, CL_TRUE, 0, widthMip[0] * heightMip[0] * channels, finalImage, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(queue, final_image_buffer, CL_TRUE, 0, width * height * channels, finalImage, 0, NULL, NULL);
 
-    //if (err != CL_SUCCESS) {
-      //  fprintf(stderr, "Error reading image data from buffer\n");
-   // }
+    if (err != CL_SUCCESS) {
+        fprintf(stderr, "Error reading image data from buffer\n");
+    }
 
     // Zapisz przetworzony obraz
-   // stbi_write_png("DownScale.jpg", widthMip[0], heightMip[0], channels, mipBuffer[0], widthMip[0] * channels);
+    stbi_write_png("DownScale.jpg", width, height, channels, finalImage, width * channels);
 
     // Zwolnij zasoby
     clReleaseMemObject(image_buffer);
+    clReleaseMemObject(bloom_image_buffer);
     clReleaseMemObject(final_image_buffer);
     clReleaseKernel(down_scale_kernel);
+    clReleaseKernel(up_scale_kernel);
+    clReleaseKernel(pbb_scale_kernel);
     clReleaseProgram(down_scale);
+    clReleaseProgram(up_scale);
+    clReleaseProgram(PBB);
     clReleaseCommandQueue(queue);
     clReleaseContext(context);
     stbi_image_free(image_data);
