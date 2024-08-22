@@ -1,4 +1,4 @@
-__kernel void toon_shading(__global uchar *original_image, // Obraz RGB
+__kernel void execute(__global uchar *original_image, // Obraz RGB
                            __global uchar *edge_image,
                            __global uchar *final_image, // Obraz z krawêdziami
                            const int levels,

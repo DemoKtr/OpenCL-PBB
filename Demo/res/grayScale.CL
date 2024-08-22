@@ -1,4 +1,4 @@
-__kernel void process_image(__global uchar *image, // Obraz RGB
+__kernel void execute(__global uchar *image, // Obraz RGB
                             __global uchar *gray_image, // Obraz szaro-skalowy
                             const int width,
                             const int height) {

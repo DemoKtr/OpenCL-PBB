@@ -1,4 +1,4 @@
-__kernel void edges_detection(__global uchar *gray_image, // Obraz szaro-skalowy
+__kernel void execute(__global uchar *gray_image, // Obraz szaro-skalowy
                               __global uchar *final_image, // Obraz z krawêdziami
                               const int width,
                               const int height) {
