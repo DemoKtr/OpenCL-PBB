@@ -8,11 +8,11 @@
 #include "stb_image_write.h"
 #include "./../builderCL.h"
 
-void toon_postprocess(std::string image)
+void toon_postprocess(std::string image, std::string output)
 {
     int width, height, channels;
-    stbi_uc* image_data = stbi_load("wp.jpg", &width, &height, &channels, 0);
-    int levels = 20;
+    stbi_uc* image_data = stbi_load(image.c_str(), &width, &height, &channels, 0);
+    int levels = 15;
     stbi_uc* finalImage = new stbi_uc[width * height * channels];
     if (image_data == NULL) {
         fprintf(stderr, "Error loading image\n");
@@ -123,7 +123,7 @@ void toon_postprocess(std::string image)
     }
 
     // Zapisz przetworzony obraz
-    stbi_write_png("output.jpg", width, height, channels, finalImage, width * channels);
+    stbi_write_png(output.c_str(), width, height, channels, finalImage, width * channels);
 
     // Zwolnij zasoby
     clReleaseMemObject(image_buffer);

@@ -6,13 +6,13 @@
 #include <iostream>
 
 
-void pbb_postprocess(std::string image)
+void pbb_postprocess(std::string image, std::string output)
 {
     int width, height, channels;
     int mipLevel = 3;
 
 
-    stbi_uc* image_data = stbi_load("wp.jpg", &width, &height, &channels, 0);
+    stbi_uc* image_data = stbi_load(image.c_str(), &width, &height, &channels, 0);
     std::vector<stbi_uc*> mip;
     for (uint32_t i = 0; i < mipLevel; ++i) {
        mip.push_back(new stbi_uc[(width/(2*(i+1))) * (height/(2 * (i + 1))) *channels]);
@@ -177,7 +177,7 @@ void pbb_postprocess(std::string image)
     }
 
     // Zapisz przetworzony obraz
-    stbi_write_png("DownScale.jpg", width, height, channels, finalImage, width * channels);
+    stbi_write_png(output.c_str(), width, height, channels, finalImage, width * channels);
 
     // Zwolnij zasoby
     clReleaseMemObject(image_buffer);
