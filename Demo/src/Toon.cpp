@@ -6,14 +6,14 @@
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
-#include "./../builderCL.h"
+#include "builderCL.h"
 
 void toon_postprocess(std::string image, std::string output)
 {
     int width, height, channels;
     stbi_uc* image_data = stbi_load(image.c_str(), &width, &height, &channels, 0);
     int levels = 15;
-    stbi_uc* finalImage = new stbi_uc[width * height * channels];
+    stbi_uc* finalImage = new stbi_uc[width * height];
     if (image_data == NULL) {
         fprintf(stderr, "Error loading image\n");
     }
@@ -116,14 +116,14 @@ void toon_postprocess(std::string image, std::string output)
     clEnqueueNDRangeKernel(queue, toon_kernel, 2, NULL, global_work_size, NULL, 0, NULL, NULL);
     clFinish(queue);
 
-    err = clEnqueueReadBuffer(queue, final_image_buffer, CL_TRUE, 0, width * height * channels, finalImage, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(queue, edge_buffer, CL_TRUE, 0, width * height , finalImage, 0, NULL, NULL);
 
     if (err != CL_SUCCESS) {
         fprintf(stderr, "Error reading image data from buffer\n");
     }
 
     // Zapisz przetworzony obraz
-    stbi_write_png(output.c_str(), width, height, channels, finalImage, width * channels);
+    stbi_write_png(output.c_str(), width, height, 1, finalImage, width );
 
     // Zwolnij zasoby
     clReleaseMemObject(image_buffer);

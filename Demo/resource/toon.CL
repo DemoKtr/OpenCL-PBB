@@ -11,9 +11,9 @@ __kernel void execute(__global uchar *original_image, // Obraz RGB
         int index = (y * width + x) * 3;
 
         // Odczyt krawêdzi
-        int edge = (int)edge_image[index/3];
+        uchar edge = edge_image[index/3];
         
-        if (edge < 245) {
+        if (edge < 200) {
             // Konwersja kolorów z uchar do float
             float R = (float)original_image[index] / 255.0f;
             float G = (float)original_image[index + 1] / 255.0f;
