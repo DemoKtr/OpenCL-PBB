@@ -20,7 +20,7 @@ include_directories(${OpenCL_INCLUDE_DIR})
 
 
 # Add source to this project's executable.
-add_executable (OpenCLPPB src/main.cpp  "src/Toon.h" "src/fileLoader/Loader.h" "src/Toon.cpp" "src/builderCL.h" "src/builderCL.cpp" "src/NeuralNetwork.h" "src/fileLoader/NeuralNetwork.cpp" "src/PBB.h" "src/PBB.cpp"  "src/Mosaic.h" "src/Mosaic.cpp")
+add_executable (OpenCLPPB src/main.cpp  "src/Toon.h" "src/fileLoader/Loader.h" "src/Toon.cpp" "src/builderCL.h" "src/builderCL.cpp" "src/NeuralNetwork.h" "src/NeuralNetwork.cpp" "src/PBB.h" "src/PBB.cpp"  "src/Mosaic.h" "src/Mosaic.cpp" "src/fileLoader/DataLoader.h" "src/fileLoader/DataLoader.cpp")
 
 # Zdefiniuj ścieżkę do folderu 'resource' w katalogu źródłowym
 set(RESOURCE_DIR "${CMAKE_SOURCE_DIR}/resource")

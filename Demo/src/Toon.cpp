@@ -122,7 +122,7 @@ void toon_postprocess(std::string image, std::string output)
         fprintf(stderr, "Error reading image data from buffer\n");
     }
 
-    // Zapisz przetworzony obraz
+    // Zapisz przetworzony obrazde
     stbi_write_png(output.c_str(), width, height, 1, finalImage, width );
 
     // Zwolnij zasoby

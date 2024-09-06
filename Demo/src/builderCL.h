@@ -31,16 +31,25 @@ namespace clInit {
 
 	template<typename T>
 	void CreateBuffer(CLCreateBufferInput<T> input) {
-
+		cl_int err;
 
 		if (input.readOnly)
-			*input.buffer = clCreateBuffer(input.context, CL_MEM_READ_ONLY, input.size, NULL, NULL);
-		else *input.buffer = clCreateBuffer(input.context, CL_MEM_READ_WRITE, input.size, NULL, NULL);
+		{
+			*input.buffer = clCreateBuffer(input.context, CL_MEM_READ_ONLY, input.size, NULL, &err);
+			if (err != CL_SUCCESS) {
+				fprintf(stderr, "Error copying image data to buffer\n");
+			}
+		}
+		else { *input.buffer = clCreateBuffer(input.context, CL_MEM_READ_WRITE, input.size, NULL, &err); 
+			if (err != CL_SUCCESS) {
+				fprintf(stderr, "Error copying image data to buffer\n");
+			}
+		}
 
 
 
 		if (input.data != nullptr) {
-			cl_int err;
+			
 				err = clEnqueueWriteBuffer(input.queue, *input.buffer, CL_TRUE, 0, input.size, input.data, 0, NULL, NULL);
 			if (err != CL_SUCCESS) {
 				fprintf(stderr, "Error copying image data to buffer\n");
@@ -53,4 +62,5 @@ namespace clInit {
 
 	void Build(cl_program program, cl_device_id device, std::string code);
 	void CreateKernel(cl_kernel *kernel, cl_program program);
+	void DebugProgram(cl_device_id device, cl_program program);
 }

@@ -1,5 +1,6 @@
 #include "builderCL.h"
 #include "fileLoader/Loader.h"
+#include <iostream>
 //#include "fileLoader/Loader.h"
 
 
@@ -7,6 +8,7 @@ void clInit::Initialize(CLInitializeInput input)
 {
     clGetPlatformIDs(1, input.platform, NULL);
 
+    clGetDeviceIDs(*input.platform, CL_DEVICE_TYPE_GPU, 1, input.device, NULL);
     clGetDeviceIDs(*input.platform, CL_DEVICE_TYPE_GPU, 1, input.device, NULL);
 
     *input.context = clCreateContext(NULL, 1, input.device, NULL, NULL, NULL);
@@ -38,4 +40,13 @@ void clInit::CreateKernel(cl_kernel* kernel, cl_program program)
     // cl_kernel kernel = clCreateKernel(program, "process_image", NULL);
     *kernel = clCreateKernel(program, "execute", NULL);
 
+}
+
+void clInit::DebugProgram(cl_device_id device, cl_program program){
+   
+    size_t log_size;
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+    std::vector<char> log(log_size);
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), NULL);
+    std::cerr << "Build log:\n" << log.data() << std::endl;
 }
